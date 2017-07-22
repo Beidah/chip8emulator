@@ -1,7 +1,25 @@
 #include "chip8.h"
 #include <fstream>
 
-char chip8_fontset[80];
+unsigned char chip8_fontset[80] =
+{
+	0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
+	0x20, 0x60, 0x20, 0x20, 0x70, // 1
+	0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
+	0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
+	0x90, 0x90, 0xF0, 0x10, 0x10, // 4
+	0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
+	0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
+	0xF0, 0x10, 0x20, 0x40, 0x40, // 7
+	0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
+	0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
+	0xF0, 0x90, 0xF0, 0x90, 0x90, // A
+	0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
+	0xF0, 0x80, 0x80, 0x80, 0xF0, // C
+	0xE0, 0x90, 0x90, 0x90, 0xE0, // D
+	0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
+	0xF0, 0x80, 0xF0, 0x80, 0x80  // F
+};
 
 void Chip8::initialize()
 {
@@ -189,16 +207,39 @@ void Chip8::emulateCycle()
 		break;
 
 		/**
+		 * 0xDXYN:
 		 * Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels. 
 		 * Each row of 8 pixels is read as bit-coded starting from memory location I; I value doesn’t 
 		 * change after the execution of this instruction. As described above, VF is set to 1 if any 
 		 * screen pixels are flipped from set to unset when the sprite is drawn, and to 0 if that doesn’t 
 		 * happen
 		 */
-	case 0xD000: // 0xDXYN
+	case 0xD000:
+	{
+		unsigned short x = V[(opcode & 0x0F00) >> 8];
+		unsigned short y = V[(opcode & 0x00F0) >> 4];
+		unsigned short height = opcode & 0x000F;
+		unsigned short pixel;
+
+		V[0xF] = 0;
+		for (int yline = 0; yline < height; yline++)
 		{
-			// TODO
+			pixel = memory[I + yline];
+			for (int xline = 0; x < 8; xline++)
+			{
+				if ((pixel & (0x80 >> xline)) != 0)
+				{
+					if (gfx[x + xline + ((y + yline) * 64)] == 1)
+						V[0xF] = 1;
+					gfx[x + xline + ((y + yline) * 64)] ^= 1;
+				}
+			}
 		}
+
+		drawFlag = true;
+		pc += 2;
+	}
+	break;
 
 	case 0xE000:
 		switch (opcode & 0x00FF)

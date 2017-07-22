@@ -25,7 +25,11 @@ private:
 	// Chip 8 uses a hex based keypad
 	unsigned char key[16];
 
+	
+
 public:
+
+	bool drawFlag;
 
 	void initialize();
 	void emulateCycle();
