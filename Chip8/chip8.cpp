@@ -1,5 +1,6 @@
 #include "chip8.h"
 #include <fstream>
+#include <time.h>
 
 unsigned char chip8_fontset[80] =
 {
@@ -50,6 +51,10 @@ void Chip8::initialize()
 	// Reset timers
 	delay_timer = 0;
 	sound_timer = 0;
+
+	drawFlag = true;
+
+	srand(time(NULL));
 }
 
 
@@ -66,11 +71,14 @@ void Chip8::emulateCycle()
 		case 0x0000: // 0x00E0: clears the screen
 			for (auto i = 0; i < 64 * 32; ++i)
 				gfx[i] = 0;
+			drawFlag = true;
 			pc += 2;
 			break;
 
 		case 0x000E: // 0x00EE: Returns from subroutine
-			// TODO
+			--sp;
+			pc = stack[sp];
+			pc += 2;
 			break;
 
 		default:
@@ -127,17 +135,17 @@ void Chip8::emulateCycle()
 			break;
 
 		case 0x0001: // 0x8XY1: Sets VX to VX | VY
-			V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x0F00) >> 8] | V[(opcode & 0x00F0) >> 4];
+			V[(opcode & 0x0F00) >> 8] |= V[(opcode & 0x00F0) >> 4];
 			pc += 2;
 			break;
 
 		case 0x0002: // 0x8XY2: Sets VX to VX & VY
-			V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x0F00) >> 8] & V[(opcode & 0x00F0) >> 4];
+			V[(opcode & 0x0F00) >> 8] &= V[(opcode & 0x00F0) >> 4];
 			pc += 2;
 			break;
 
 		case 0x0003: // 0x8XY3: Sets VX to VX ^ VY
-			V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x0F00) >> 8] ^ V[(opcode & 0x00F0) >> 4];
+			V[(opcode & 0x0F00) >> 8] ^= V[(opcode & 0x00F0) >> 4];
 			pc += 2;
 			break;
 
@@ -150,33 +158,33 @@ void Chip8::emulateCycle()
 			pc += 2;
 			break;
 
-		case 0x0005: // 0x8XY5: Subtracts VY from VX. VF is set to 1 if there is a borrow, else 0
+		case 0x0005: // 0x8XY5: Subtracts VY from VX. VF is set to 0 if there is a borrow, else 1
 			if (V[(opcode & 0x00f0) >> 4] > V[(opcode & 0x0F00) >> 8])
-				V[0xF] = 1;
-			else
 				V[0xF] = 0;
+			else
+				V[0xF] = 1;
 			V[(opcode & 0x0F00) >> 8] -= V[(opcode & 0x00F0) >> 4];
 			pc += 2;
 			break;
 
 		case 0x0006: // 0x8XY6: Shifts VX right by one. VF is set to the value of the least significant bit of VX before the shift.
-			V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x0001;
-			V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x0F00) >> 8] >> 1;
+			V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x1;
+			V[(opcode & 0x0F00) >> 8] >>= 1;
 			pc += 2;
 			break;
 
-		case 0x0007: // 0x8XY7: Sets VX to VY minus VX. VF is again the borrow.
-			if (V[(opcode & 0x00f0) >> 4] < V[(opcode & 0x0F00) >> 8])
-				V[0xF] = 1;
-			else
+		case 0x0007: // 0x8XY7: Sets VX to VY minus VX. VF is 0 when there is a borrow.
+			if (V[(opcode & 0x0F00) >> 8] > V[(opcode & 0x00F0) >> 4])
 				V[0xF] = 0;
+			else
+				V[0xF] = 1;
 			V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x00F0) >> 4] - V[(opcode & 0x0F00) >> 8];
 			pc += 2;
 			break;
 
 		case 0x000E: // 0x8XYE: Shifts VX left by one. VF is set to the value of the most significant bit of VX before the shift.
-			V[0xF] = V[(opcode & 0x0F00) >> 8] & 0x8000;
-			V[(opcode & 0x0F00) >> 8] = V[(opcode & 0x0F00) >> 8] << 1;
+			V[0xF] = V[(opcode & 0x0F00) >> 8] >> 0x7;
+			V[(opcode & 0x0F00) >> 8] <<= 1;
 			pc += 2;
 			break;
 
@@ -202,7 +210,7 @@ void Chip8::emulateCycle()
 		break;
 
 	case 0xC000: // 0xCXNN: Sets VX to the result of bitwise and op of a random (0-255) and NN
-		// TODO: Random number setup
+		V[(opcode & 0x0F00) >> 8] = (opcode & 0x00FF) & (rand() % 0xFF);
 		pc += 2;
 		break;
 
@@ -245,14 +253,14 @@ void Chip8::emulateCycle()
 		switch (opcode & 0x00FF)
 		{
 		case 0x009E: // 0xEX9E:  skips the next instuction if the key stored in VX is pressed
-			if (key[V[(opcode & 0x0F00) >> 8]])
+			if (key[V[(opcode & 0x0F00) >> 8]] != 0)
 				pc += 4;
 			else
 				pc += 2;
 			break;
 
 		case 0x00A1: // 0xEXA1: skips the next instuction if the key stored in VX is pressed
-			if (!key[V[(opcode & 0x0F00) >> 8]])
+			if (key[V[(opcode & 0x0F00) >> 8]] == 0)
 				pc += 4;
 			else
 				pc += 2;
@@ -272,7 +280,20 @@ void Chip8::emulateCycle()
 			break;
 
 		case 0x000A: // 0xFX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
-			// TODO
+			bool keypress = false;
+			for (int i = 0; i < 16; ++i)
+			{
+				if (key[i] != 0)
+				{
+					keypress = true;
+					V[(opcode & 0x0F00) >> 8] = i;
+				}
+			}
+
+			if (!keypress)
+				return;
+
+			pc += 2;
 			break;
 
 		case 0x0015: // 0xFX15 Sets value of delay timer to VX
@@ -286,12 +307,17 @@ void Chip8::emulateCycle()
 			break;
 
 		case 0x001E: // 0xFX1E: adds value of VX to I
+			if (I += V[(opcode & 0x0F00) >> 8] > 0xFFF)
+				V[0xF] = 1;
+			else
+				V[0xF] = 0;
 			I += V[(opcode & 0x0F00) >> 8];
 			pc += 2;
 			break;
 
 		case 0x0029: // 0xFX29: Sets I to the location of the sprite for the character in VX.
-			// TODO
+			I = V[(opcode 0x0F00) >> 8] * 0x5;
+			pc += 2;
 			break;
 
 		case 0x0033: // 0xFX33: Stores the Binary-coded decimal representation of VX at the addresses I, I plus 1, and I plus 2
@@ -304,14 +330,20 @@ void Chip8::emulateCycle()
 		case 0x0055: // 0xFX55: Stores V0 to VX (including VX) in memory starting at address I.
 			for (int i = 0; i <= (opcode & 0x0F00) >> 8; ++i)
 				memory[I + i] = V[i];
+
+			I += ((opcode & 0x0F00) >> 8) + 1;
 			pc += 2;
 			break;
 
 		case 0x0065: // 0xFX65: Fills V0 to VX (includeing VX) from memory starting at address I.
 			for (int i = 0; i <= (opcode & 0x0F00) >> 8; ++i)
 				V[i] = memory[I + i];
+			I += ((opcode & 0x0F00) >> 8) + 1;
 			pc += 2;
 			break;
+
+		default:
+			printf("Unkown opcode [0xF000]: 0x%X\n", opcode);
 		}
 
 	default:
@@ -330,7 +362,7 @@ void Chip8::emulateCycle()
 	}
 }
 
-void Chip8::loadGame(char* filename)
+void Chip8::loadProgram(char* filename)
 {
 
 	auto file = std::ifstream(filename, std::ios::binary);

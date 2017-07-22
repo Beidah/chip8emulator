@@ -4,6 +4,16 @@
 
 class Chip8
 {
+public:
+	Chip8();
+	~Chip8();
+
+	void initialize();
+
+	void emulateCycle();
+	void loadProgram(char* filename);
+
+	bool drawFlag;
 private:
 	unsigned short opcode;
 	unsigned char memory[4096]; // 4KB memory
@@ -12,8 +22,7 @@ private:
 	// Index register and Program counter
 	unsigned short I;
 	unsigned short pc;
-	// Graphics array
-	unsigned char gfx[64 * 32];
+	
 	// Both timers, when set, count down to zero at 60HZ
 	unsigned char delay_timer;
 	// The system’s buzzer sounds whenever the sound timer reaches zero.
@@ -22,16 +31,11 @@ private:
 	unsigned short stack[16];
 	unsigned short sp; // Stack pointer
 
-	// Chip 8 uses a hex based keypad
-	unsigned char key[16];
-
 	
 
 public:
-
-	bool drawFlag;
-
-	void initialize();
-	void emulateCycle();
-	void loadGame(char* filename);
+	// Graphics array
+	unsigned char gfx[64 * 32];
+	// Chip 8 uses a hex based keypad
+	unsigned char key[16];
 };
