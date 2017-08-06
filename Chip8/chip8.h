@@ -8,10 +8,10 @@ public:
 	Chip8();
 	~Chip8();
 
-	void initialize();
+	void init();
 
 	void emulateCycle();
-	void loadProgram(char* filename);
+	bool loadProgram(const char* filename);
 
 	bool drawFlag;
 private:

@@ -1,5 +1,11 @@
 #include "chip8.h"
-#include <fstream>
+
+#ifdef _MSC_VER
+#define _CRT_SECURE_NO_WARNINGS
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 
 unsigned char chip8_fontset[80] =
@@ -22,7 +28,19 @@ unsigned char chip8_fontset[80] =
 	0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 };
 
-void Chip8::initialize()
+Chip8::Chip8()
+{
+	
+}
+
+Chip8::~Chip8()
+{
+	
+}
+
+
+
+void Chip8::init()
 {
 	// Initialize registers and memory once
 	pc		= 0x200; // Program counter starts at 0x200
@@ -233,7 +251,7 @@ void Chip8::emulateCycle()
 		for (int yline = 0; yline < height; yline++)
 		{
 			pixel = memory[I + yline];
-			for (int xline = 0; x < 8; xline++)
+			for (int xline = 0; xline < 8; xline++)
 			{
 				if ((pixel & (0x80 >> xline)) != 0)
 				{
@@ -270,6 +288,7 @@ void Chip8::emulateCycle()
 			printf("Unkown opcode [0xE000]: 0x%X\n", opcode);
 
 		}
+		break;
 
 	case 0xF000:
 		switch (opcode & 0x00FF)
@@ -280,21 +299,23 @@ void Chip8::emulateCycle()
 			break;
 
 		case 0x000A: // 0xFX0A A key press is awaited, and then stored in VX. (Blocking Operation. All instruction halted until next key event)
-			bool keypress = false;
-			for (int i = 0; i < 16; ++i)
-			{
-				if (key[i] != 0)
+			{	
+				bool keypress = false;
+				for (int i = 0; i < 16; ++i)
 				{
-					keypress = true;
-					V[(opcode & 0x0F00) >> 8] = i;
+					if (key[i] != 0)
+					{
+						keypress = true;
+						V[(opcode & 0x0F00) >> 8] = i;
+					}
 				}
+
+				if (!keypress)
+					return;
+
+				pc += 2;
+				break;
 			}
-
-			if (!keypress)
-				return;
-
-			pc += 2;
-			break;
 
 		case 0x0015: // 0xFX15 Sets value of delay timer to VX
 			delay_timer = V[(opcode & 0x0F00) >> 8];
@@ -316,7 +337,7 @@ void Chip8::emulateCycle()
 			break;
 
 		case 0x0029: // 0xFX29: Sets I to the location of the sprite for the character in VX.
-			I = V[(opcode 0x0F00) >> 8] * 0x5;
+			I = V[(opcode & 0x0F00) >> 8] * 0x5;
 			pc += 2;
 			break;
 
@@ -345,6 +366,7 @@ void Chip8::emulateCycle()
 		default:
 			printf("Unkown opcode [0xF000]: 0x%X\n", opcode);
 		}
+		break;
 
 	default:
 		printf("Unkown opcode: 0x%X\n", opcode);
@@ -362,23 +384,54 @@ void Chip8::emulateCycle()
 	}
 }
 
-void Chip8::loadProgram(char* filename)
+bool Chip8::loadProgram(const char* filename)
 {
+	init();
+	printf("Loading: %s\n", filename);
 
-	auto file = std::ifstream(filename, std::ios::binary);
-	if (file)
+	// Open file
+	FILE * pFile = fopen(filename, "rb");
+	if (pFile == NULL)
 	{
-		file.seekg(0, file.end);
-		int length = file.tellg();
-		file.seekg(0, file.beg);
-		auto *buffer = new char[length];
-
-		file.read(buffer, 1);
-		for (auto i = 0; i < length; ++i)
-		{
-			memory[512 + i] = buffer[i];
-		}
+		fputs("File error", stderr);
+		return false;
 	}
 
+	// Check file size
+	fseek(pFile, 0, SEEK_END);
+	long lSize = ftell(pFile);
+	rewind(pFile);
+	printf("Filesize: %d\n", (int)lSize);
+
+	// Allocate memory to contain the whole file
+	char * buffer = static_cast<char*>(malloc(sizeof(char) * lSize));
+	if (buffer == NULL)
+	{
+		fputs("Memory error", stderr);
+		return false;
+	}
+
+	// Copy the file into the buffer
+	size_t result = fread(buffer, 1, lSize, pFile);
+	if (result != lSize)
+	{
+		fputs("Reading error", stderr);
+		return false;
+	}
+
+	// Copy buffer to Chip8 memory
+	if ((4096 - 512) > lSize)
+	{
+		for (int i = 0; i < lSize; ++i)
+			memory[i + 512] = buffer[i];
+	}
+	else
+		printf("Error: ROM too big for memory");
+
+	// Close file, free buffer
+	fclose(pFile);
+	free(buffer);
+
+	return true;
 }
 
