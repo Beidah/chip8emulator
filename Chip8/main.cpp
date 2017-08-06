@@ -1,6 +1,9 @@
 #include "chip8.h"
 #include <SDL.h>
 #include <iostream>
+#include <ctime>
+
+#define FPS 580.0f
 
 // Display size
 #define SCREEN_WIDTH 64
@@ -25,14 +28,14 @@ int main(int argc, char** argv)
 	if (argc < 2)
 	{
 		printf("Usage: myChip8.exe chip8application\n\n");
-		return 1;
+		//return 1;
 	}
 
 	// Load game
-	if (!myChip8.loadProgram(argv[1]))
-		return 1;
+	//if (!myChip8.loadProgram(argv[1]))
+		//return 1;
 
-	// myChip8.loadProgram("./pong.rom");
+	myChip8.loadProgram("./pong.rom");
 
 	if (SDL_Init(SDL_INIT_EVERYTHING) != 0)
 	{
@@ -57,6 +60,8 @@ int main(int argc, char** argv)
 		return 2;
 	}
 
+	auto startTime = clock();
+
 	while (true)
 	{
 		SDL_Event e;
@@ -76,12 +81,22 @@ int main(int argc, char** argv)
 			}
 		}
 
-		myChip8.emulateCycle();
+		auto updateTime = clock();
+
+		if ((updateTime - startTime) / (CLOCKS_PER_SEC / FPS) >= 1000.0f / FPS)
+		{
+			startTime = updateTime;
+
+			myChip8.emulateCycle();
+			
+		}
+
 		if (myChip8.drawFlag)
 		{
 			drawPixels(renderer);
 			myChip8.drawFlag = false;
 		}
+
 
 		SDL_RenderPresent(renderer);
 		// SDL_Delay(1000 / 60);
