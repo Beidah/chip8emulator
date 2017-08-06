@@ -19,7 +19,6 @@ void drawPixels(SDL_Renderer* renderer);
 
 int main(int argc, char** argv)
 {
-	/*
 	if (argc < 2)
 	{
 		printf("Usage: myChip8.exe chip8application\n\n");
@@ -28,7 +27,7 @@ int main(int argc, char** argv)
 
 	// Load game
 	if (!myChip8.loadProgram(argv[1]))
-		return 1; */
+		return 1;
 
 	myChip8.loadProgram("./pong.rom");
 
@@ -64,8 +63,6 @@ int main(int argc, char** argv)
 		}
 
 		myChip8.emulateCycle();
-
-		// SDL_RenderClear(renderer);
 		if (myChip8.drawFlag)
 		{
 			drawPixels(renderer);
@@ -73,7 +70,7 @@ int main(int argc, char** argv)
 		}
 
 		SDL_RenderPresent(renderer);
-		SDL_Delay(1000 / 30);
+		SDL_Delay(1000 / 60);
 	}
 
 	SDL_DestroyRenderer(renderer);

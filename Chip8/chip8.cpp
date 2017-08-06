@@ -114,14 +114,14 @@ void Chip8::emulateCycle()
 		break;
 
 	case 0x3000: // 0x3XNN: skips next instruction if VX = NN
-		if (V[(opcode & 0x0F00) >> 8] == opcode & 0x00FF)
+		if (V[(opcode & 0x0F00) >> 8] == (opcode & 0x00FF))
 			pc += 4;
 		else
 			pc += 2;
 		break;
 
 	case 0x4000: // 0x4XNN Skips the next instuction if VX != NN
-		if (V[(opcode & 0x0F00) >> 8] != opcode & 0x00FF)
+		if (V[(opcode & 0x0F00) >> 8] != (opcode & 0x00FF))
 			pc += 4;
 		else
 			pc += 2;
